@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useBookAppointment, useUserAppointments } from "@/hooks/use-appointment";
 import { APPOINTMENT_TYPES } from "@/lib/utils";
 import { format } from "date-fns";
+import { AppointmentConfirmationModal } from "@/components/appointments/AppointmentConfirmationModal";
 
 function AppointmentsPage() {
      // state management for the booking process - this could be done with something like Zustand for larger apps
@@ -55,7 +56,28 @@ function AppointmentsPage() {
           // store the appointment details to show in the modal
           setBookedAppointment(appointment);
 
-          //todo: send email using resend
+  
+          try {
+            const emailResponse = await fetch("/api/send-appointment-email", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userEmail: appointment.patientEmail,
+                doctorName: appointment.doctorName,
+                appointmentDate: format(new Date(appointment.date), "EEEE, MMMM d, yyyy"),
+                appointmentTime: appointment.time,
+                appointmentType: appointmentType?.name,
+                duration: appointmentType?.duration,
+                price: appointmentType?.price,
+              }),
+            });
+
+            if (!emailResponse.ok) console.error("Failed to send confirmation email");
+          } catch (error) {
+            console.error("Error sending confirmation email:", error);
+          }
 
            // show the success modal
           setShowConfirmationModal(true);
@@ -121,6 +143,19 @@ function AppointmentsPage() {
           />
         )}
         </div>
+
+        {bookedAppointment && (
+        <AppointmentConfirmationModal
+          open={showConfirmationModal}
+          onOpenChange={setShowConfirmationModal}
+          appointmentDetails={{
+            doctorName: bookedAppointment.doctorName,
+            appointmentDate: format(new Date(bookedAppointment.date), "EEEE, MMMM d, yyyy"),
+            appointmentTime: bookedAppointment.time,
+            userEmail: bookedAppointment.patientEmail,
+          }}
+        />
+      )}
 
           {/* SHOW EXISTING APPOINTMENTS FOR THE CURRENT USER */}
            {userAppointments.length > 0 && (
